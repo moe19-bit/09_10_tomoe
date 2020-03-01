@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>php_db_api</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<style>
+    h1 {
+        text-align: center;
+        font-size: 300%;
+        color: #fff;
+        padding: 30px;
+        border: #094128 1px dotted;
+        border-left: coral 10px solid;
+        background-color: rgb(55, 211, 55);
+    }
+    
+    h2 {
+        padding: 5px 20px;
+        background-position: center top;
+    }
+    
+    input {
+        width: 100px;
+    }
+</style>
+
+
+<body style="background-color: rgb(161, 243, 161);">
+    <h1>ジモトモ広場👨‍👩‍👦‍👦みんなの掲示板</h1>
+    <div style="text-align:center;font-size: 20px;">
+        <span>皆さんサイトのルールを良く守って利用しましょう。</span>
+    </div>
+    <fieldset>
+        <legend>投稿内容</legend>
+        <form>
+            <div>
+                <label for="deadline">締め切り日</label>
+                <input type="date" id="deadline">
+            </div>
+            <p>
+                <label for="select">カテゴリー</label>
+                <select id="select" name=’select’ style="background-color:plum;">
+                    <option value="selected">選択してください</option>
+                    <option value="助け合い">助け合い</option>
+                    <option value="メンバー募集">メンバー募集</option>
+                    <option value="里親募集">里親募集</option>
+                    <option value="売り買い">売り買い</option>
+                </select>
+            </p>
+
+            <div>
+                <label for="pref">都道府県/市区</label>
+                <input type="text" id="pref">
+            </div>
+            <div>
+                <label for="task">ジャンル</label>
+                <input type="text" id="task">
+            </div>
+            <div>
+                <label for="comment">コメント</label>
+                <textarea name="" id="comment" cols="30" rows="10"></textarea>
+            </div>
+            <div>
+                <label for="image">image</label>
+                <input type="file" id="image" accept="image/*">
+            </div>
+            <div>
+                <label for="name">投稿者</label>
+                <input type="name" id="name">
+            </div>
+            <button type="button" id="send" style="background-color:orchid;">投稿</button>
+        </form>
+    </fieldset>
+
+    <fieldset>
+        <legend>search form</legend>
+        <form>
+            <div>
+                <label for="search">search</label>
+                <input type="text" id="search">
+            </div>
+        </form>
+    </fieldset>
+
+    <fieldset>
+        <legend>data table</legend>
+        <table>
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>id</th>
+                    <th>deadline</th>
+                    <th>select</th>
+                    <th>pref</th>
+                    <th>task</th>
+                    <th>comment</th>
+                    <th>image</th>
+                    <th>name</th>
+                    <!-- ここに画像用の<th>を用意 -->
+                    <th>created_at</th>
+                    <th>updated_at</th>
+                </tr>
+            </thead>
+            <tbody id="echo"></tbody>
+        </table>
+    </fieldset>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <fieldset>
+                <legend>edit form</legend>
+                <form>
+                    <div>
+                        <label for="deadlineEdit">締め切り日</label>
+                        <input type="date" id="deadline">
+
+                    </div>
+                    <p>
+                        <label for="selectEdit">カテゴリー</label>
+                        <select name="select">
+                                <option value="1">助け合い</option>
+                                <option value="2" selected>メンバー募集</option>
+                                <option value="3" selected>里親募集</option>
+                                <option value="4" selected>売り買い</option>
+                                <option value="5" selected>選択してください</option>
+                            </select>
+                    </p>
+                    <div>
+                        <label for="prefEdit">都道府県/市区</label>
+                        <input type="date" id="deadlineEdit">
+                    </div>
+                    <div>
+                        <label for="taskEdit">ジャンル</label>
+                        <input type="text" id="taskEdit">
+                    </div>
+
+                    <div>
+                        <label for="commentEdit">コメント</label>
+                        <textarea name="" id="commentEdit" cols="30" rows="10"></textarea>
+                    </div>
+                    <div>
+                        <label for="imageEdit">image</label>
+                        <input type="file" id="image" accept="image/*">
+                    </div>
+                    <div>
+                        <label for="nameEdit">投稿者</label>
+                        <input type="name" id="name">
+                    </div>
+                    <input type="hidden" name="" id="hiddenId">
+                    <button type="button" id="updateButton">update</button>
+                </form>
+            </fieldset>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+    <script>
+        // モーダルの黒い部分クリックで閉じる処理
+        document.getElementById('modal').addEventListener('click', e => {
+            // モーダルのフォームクリック時には閉じないように条件を分ける
+            if (e.target == document.getElementById('modal')) {
+                document.getElementById('modal').style.display = 'none';
+            }
+        });
+
+        const createUrl = '../api/create.php';
+        const readUrl = '../api/read.php';
+
+        // 配列をタグに入れていい感じの形にする関数
+        // 画像の表示を追加しよう
+        const convertArraytoListTag = array => {
+            return array.map(x => {
+                return `<tr>
+                          <td>
+                            <button type="button" class="editButton" style="background-color:plum;" value=${x.id}>edit</button>
+                            <button type="button" class="deleteButton" style="background-color:rgb(239, 247, 92);" value=${x.id}>delete</button>
+                          </td>
+                          <td>${x.id}</td>
+                          <td>${x.deadline}</td>
+                          <td>${x.select}</td>
+                          <td>${x.pref}</td>
+                          <td>${x.task}</td>
+                          <td>${x.comment}</td>
+                          <td>
+           　　　　　　　　　　 <img src="../api/${x.image}" height="50px" onerror='this.style.display ="none"'>
+        　　　　　　　　　　　</td>
+                          <td>${x.name}</td>
+                          <td>${x.created_at}</td>
+                          <td>${x.updated_at}</td>
+                        </tr>`;
+            }).join('');
+        }
+
+        // readの処理をする関数を定義
+        const readData = url => {
+            axios.get(url)
+                .then(response => {
+                    // 成功した時
+                    console.log(response);
+                    // テーブルタグの中身を生成して表示
+                    document.getElementById('echo').innerHTML = convertArraytoListTag(response.data);
+                    // 該当するidのデータを取得してフォームのvalueに設定する
+                    // データ取得後（DOM生成後）でないとクリックイベントを追加できない
+                    document.querySelectorAll('.editButton').forEach(x => {
+                        x.addEventListener('click', e => {
+                            const id = e.target.value;
+                            const requestUrl = `../api/edit.php?id=${id}`;
+                            axios.get(requestUrl)
+                                .then(response => {
+                                    console.log(response.data);
+                                    // updateフォームに値を設定
+                                    document.getElementById('deadlineEdit').value = response.data.deadline;
+                                    document.getElementById('selectEdit').value = response.data.select;
+                                    document.getElementById('prefEdit').value = response.data.pref;
+                                    document.getElementById('taskEdit').value = response.data.task;
+                                    document.getElementById('commentEdit').value = response.data.comment;
+                                    document.getElementById('nameEdit').value = response.data.name;
+                                    document.getElementById('hiddenId').value = response.data.id;
+                                })
+                                .catch(error => {
+                                    // 失敗した時
+                                    console.log(error);
+                                    alert(error);
+                                })
+                                .finally(() => {
+                                    // 成功失敗どちらでも実行
+                                });;
+                            // モーダルの表示
+                            document.getElementById('modal').style.display = 'block';
+                        });
+                    });
+                    // phpにデータを送信してdbのデータを削除してもらう
+                    document.querySelectorAll('.deleteButton').forEach(x => {
+                        x.addEventListener('click', e => {
+                            if (window.confirm('Are you sure?')) {
+                                const id = e.target.value;
+                                const requestUrl = `../api/delete.php?id=${id}`;
+                                axios.delete(requestUrl)
+                                    .then(response => {
+                                        console.log(response.data);
+                                        alert('deleted!');
+                                        // 最新のデータを取得
+                                        readData(readUrl);
+                                    })
+                                    .catch(error => {
+                                        // 失敗した時
+                                        console.log(error);
+                                        alert(error);
+                                    })
+                                    .finally(() => {
+                                        // 成功失敗どちらでも実行
+                                    });;
+                            }
+                        });
+                    });
+                    return response;
+                })
+                .catch(error => {
+                    // 失敗した時
+                    console.log(error);
+                    alert(error);
+                })
+                .finally(() => {
+                    // 成功失敗どちらでも実行
+                });
+        }
+
+        // 送信ボタンクリック時の処理
+        document.getElementById('send').addEventListener('click', () => {
+            // createの処理
+            // formのキーとバリューを入れる容器を準備する
+            const postData = new FormData();
+            // postDataに必要なパラメータを追加する
+            postData.append('deadline', document.getElementById('deadline').value);
+            postData.append('select', document.getElementById('select').value);
+            postData.append('pref', document.getElementById('pref').value);
+            postData.append('task', document.getElementById('task').value);
+            postData.append('comment', document.getElementById('comment').value);
+            postData.append('upfile', document.getElementById('image').files[0]);
+            postData.append('name', document.getElementById('name').value);
+
+            // 送信の処理、fileUpLoadUrl＝送り先のURLを変える、 URLを間違えないように　
+            const fileUpLoadUrl = '../api/upload.php';
+
+            console.log(...postData.entries());
+            // 送信先urlの指定
+
+
+            axios.post(fileUpLoadUrl, postData)
+                .then(response => {
+                    // 成功した時
+                    console.log(response);
+                    readData(readUrl);
+                    // 入力欄を空にする処理
+                    document.getElementById('deadline').value = '';
+                    document.getElementById('select').value = '';
+                    document.getElementById('pref').value = '';
+                    document.getElementById('task').value = '';
+                    document.getElementById('comment').value = '';
+                    document.getElementById('name').value = '';
+                })
+                .catch(error => {
+                    console.log(error);
+                    alert(error);
+                })
+                .finally(() => {});
+        });
+
+
+        // phpにデータを送信してdbのデータを更新してもらう
+        document.getElementById('updateButton').addEventListener('click', e => {
+            // 更新したいレコードのidを取得
+            const updateId = document.getElementById('hiddenId').value;
+            // formのキーとバリューを入れる容器を準備する
+            const updateData = new FormData();
+            // dataに必要なパラメータを追加する
+            updateData.append('deadline', document.getElementById('deadlineEdit').value);
+            updateData.append('select', document.getElementById('selectEdit').value);
+            updateData.append('pref', document.getElementById('prefEdit').value);
+            updateData.append('task', document.getElementById('taskEdit').value);
+            updateData.append('comment', document.getElementById('commentEdit').value);
+            updateData.append('name', document.getElementById('nameEdit').value);
+            console.log(...updateData.entries());
+            // PUTメソッドの設定
+            const config = {
+                    headers: {
+                        'X-HTTP-Method-Override': 'PUT',
+                    }
+                }
+                // 送信先の指定
+            const requestUrl = `../api/update.php?id=${updateId}`;
+            // 送信の処理
+            axios.post(requestUrl, updateData, config)
+                .then(response => {
+                    alert('updated!');
+                    // モーダルを閉じる
+                    document.getElementById('modal').style.display = 'none';
+                    // 最新のデータを取得
+                    readData(readUrl);
+                })
+                .catch(error => {
+                    // 失敗した時
+                    console.log(error);
+                    alert(error);
+                })
+                .finally(() => {
+                    // 成功失敗どちらでも実行
+                });
+        });
+
+        // 検索ボックスに入力時の処理
+        document.getElementById('search').addEventListener('keyup', e => {
+            // inputの値を取得
+            const searchWord = e.target.value;
+            // ?の後にパラメータを指定して値を送信できる
+            const requestUrl = `../api/search.php?searchWord=${searchWord}`;
+            readData(requestUrl);
+        });
+
+        // カラム名クリック時の並び替え処理
+        // thタグ全てにクリックイベントを設定
+        document.querySelectorAll('th').forEach(x => {
+            x.addEventListener('click', e => {
+                // thタグのテキストを取得
+                const columnName = e.target.innerText;
+                // urlに入れて送信
+                const requestUrl = `../api/sort.php?columnName=${columnName}`;
+                readData(requestUrl);
+            });
+        });
+
+        // 読み込み時のデータ取得処理
+        window.onload = () => {
+            readData(readUrl);
+        };
+    </script>
+</body>
+
+</html>
